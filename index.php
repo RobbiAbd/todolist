@@ -1,6 +1,8 @@
 <?php
 session_start();
 
+const PANJANG_NAMA_MAKS = 100;
+
 /**
  * Mengambil daftar tugas dari session.
  * Data contoh hanya diisi saat session belum punya daftar.
@@ -69,7 +71,7 @@ function hapusTugas(int $id): void
 function ubahTugas(int $id, string $nama): void
 {
     $nama = trim($nama);
-    if ($id < 1 || $nama === '') {
+    if ($id < 1 || $nama === '' || mb_strlen($nama) > PANJANG_NAMA_MAKS) {
         return;
     }
 
@@ -90,7 +92,7 @@ function ubahTugas(int $id, string $nama): void
 function tambahTugas(string $nama): void
 {
     $nama = trim($nama);
-    if ($nama === '') {
+    if ($nama === '' || mb_strlen($nama) > PANJANG_NAMA_MAKS) {
         return;
     }
 
@@ -108,16 +110,13 @@ function tambahTugas(string $nama): void
 }
 
 /**
- * Menampilkan tombol dan modal tambah tugas.
+ * Menampilkan modal tambah tugas.
  *
  * @return void
  */
 function tampilkanForm(): void
 {
     ?>
-    <div class="mb-4">
-        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalTambah">Tambah tugas</button>
-    </div>
     <div class="modal fade" id="modalTambah" tabindex="-1" aria-labelledby="modalTambahLabel" aria-hidden="true">
         <div class="modal-dialog">
             <form class="modal-content" method="post">
@@ -128,7 +127,8 @@ function tampilkanForm(): void
                 <div class="modal-body">
                     <input type="hidden" name="aksi" value="tambah">
                     <label class="form-label" for="nama">Nama tugas</label>
-                    <input class="form-control" type="text" id="nama" name="nama" required>
+                    <input class="form-control" type="text" id="nama" name="nama" maxlength="<?= PANJANG_NAMA_MAKS ?>" required>
+                    <div class="form-text">Maksimal <?= PANJANG_NAMA_MAKS ?> karakter.</div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Batal</button>
@@ -185,20 +185,25 @@ function tampilkanDaftar(array $tasks): void
                     <td class="<?= $item['selesai'] ? 'text-decoration-line-through' : '' ?>"><?= $nama ?></td>
                     <td><?= $item['selesai'] ? 'Selesai' : 'Belum selesai' ?></td>
                     <td>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#modalEdit<?= (int) $item['id'] ?>">Edit</button>
-                            <form method="post">
-                                <input type="hidden" name="aksi" value="hapus">
-                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-                                <button class="btn btn-sm btn-danger" type="submit">Hapus</button>
-                            </form>
-                        </div>
+                        <?php if (!$item['selesai']): ?>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#modalEdit<?= (int) $item['id'] ?>">Edit</button>
+                                <form method="post">
+                                    <input type="hidden" name="aksi" value="hapus">
+                                    <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+                                    <button class="btn btn-sm btn-danger" type="submit">Hapus</button>
+                                </form>
+                            </div>
+                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
     <?php foreach ($tasks as $item): ?>
+        <?php if ($item['selesai']) {
+            continue;
+        } ?>
         <?php $nama = htmlspecialchars($item['nama'], ENT_QUOTES, 'UTF-8'); ?>
         <div class="modal fade" id="modalEdit<?= (int) $item['id'] ?>" tabindex="-1" aria-labelledby="modalEditLabel<?= (int) $item['id'] ?>" aria-hidden="true">
             <div class="modal-dialog">
@@ -211,7 +216,8 @@ function tampilkanDaftar(array $tasks): void
                         <input type="hidden" name="aksi" value="ubah">
                         <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
                         <label class="form-label" for="namaEdit<?= (int) $item['id'] ?>">Nama tugas</label>
-                        <input class="form-control" type="text" id="namaEdit<?= (int) $item['id'] ?>" name="nama" value="<?= $nama ?>" required>
+                        <input class="form-control" type="text" id="namaEdit<?= (int) $item['id'] ?>" name="nama" value="<?= $nama ?>" maxlength="<?= PANJANG_NAMA_MAKS ?>" required>
+                        <div class="form-text">Maksimal <?= PANJANG_NAMA_MAKS ?> karakter.</div>
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Batal</button>
@@ -257,10 +263,26 @@ $tasks = muatTugas();
 </head>
 <body>
     <main class="container py-5">
-        <h1 class="mb-4">Daftar Tugas</h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="mb-0">Daftar Tugas</h1>
+            <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#modalTambah">Tambah tugas</button>
+        </div>
         <?php tampilkanForm(); ?>
         <?php tampilkanDaftar($tasks); ?>
     </main>
     <script src="assets/bootstrap-5.3.8/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.modal').forEach((modal) => {
+            modal.addEventListener('shown.bs.modal', () => {
+                const input = modal.querySelector('input[type="text"]');
+                if (!input) {
+                    return;
+                }
+
+                input.focus();
+                input.select();
+            });
+        });
+    </script>
 </body>
 </html>
